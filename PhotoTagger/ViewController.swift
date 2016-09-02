@@ -26,7 +26,7 @@ import Alamofire
 class ViewController: UIViewController {
   
   // MARK: - Imagga key
-  private var imaggaKey = "lel"
+  private var imaggaKey = "wut you lookin at?"
   
   // MARK: - IBOutlets
   @IBOutlet var takePictureButton: UIButton!
@@ -171,9 +171,11 @@ extension ViewController {
             
             print("Content uploaded with ID: \(firstFileID)")
             // Call the completion handler to update the UI
-            //completion(tags: [String](), colors: [PhotoColor]())
+            // And download the tags and the colours from the api
             self.downloadTags(firstFileID) { tags in
-              completion(tags: tags, colors: [PhotoColor]())
+              self.downloadColors(firstFileID) { colors in
+                completion(tags: tags, colors: colors)
+              }
             }
           }
         case .Failure(let encodingError):
@@ -217,6 +219,51 @@ extension ViewController {
         
         // Call completion handler with parsed tags
         completion(tags)
+    }
+  }
+  
+  
+  func downloadColors(contentID: String, completion: ([PhotoColor]) -> Void) {
+    Alamofire.request(
+      .GET,
+      "http://api.imagga.com/v1/colors",
+      parameters: ["content": contentID, "extract_object_colors": NSNumber(int: 0)],
+      headers: ["Authorization" : imaggaKey]
+      )
+      .responseJSON { response in
+        // Check if the response was successful
+        guard response.result.isSuccess else {
+          print("Error while fetching colors: \(response.result.error)")
+          completion([PhotoColor]())
+          return
+        }
+        
+        // Validate JSON
+        guard let responseJSON = response.result.value as? [String: AnyObject],
+          results = responseJSON["results"] as? [AnyObject],
+          firstResult = results.first as? [String: AnyObject],
+          info = firstResult["info"] as? [String: AnyObject],
+          imageColors = info["image_colors"] as? [[String: AnyObject]] else {
+            print("Invalid color information received from service")
+            completion([PhotoColor]())
+            return
+        }
+        
+        // Parse color values
+        let photoColors = imageColors.flatMap({ (dict) -> PhotoColor? in
+          guard let r = dict["r"] as? String,
+            g = dict["g"] as? String,
+            b = dict["b"] as? String,
+            closestPaletteColor = dict["closest_palette_color"] as? String else {
+              return nil
+          }
+          return PhotoColor(red: Int(r),
+            green: Int(g),
+            blue: Int(b),
+            colorName: closestPaletteColor)
+        })
+        
+        completion(photoColors)
     }
   }
 }
