@@ -25,6 +25,9 @@ import Alamofire
 
 class ViewController: UIViewController {
   
+  // MARK: - Imagga key
+  private var imaggaKey = "lel"
+  
   // MARK: - IBOutlets
   @IBOutlet var takePictureButton: UIButton!
   @IBOutlet var imageView: UIImageView!
@@ -123,17 +126,18 @@ extension ViewController : UIImagePickerControllerDelegate, UINavigationControll
 
 // Networking calls
 extension ViewController {
+  // Upload image to imagga
   func uploadImage(image: UIImage, progress: (percent: Float) -> Void,
                    completion: (tags: [String], colors: [PhotoColor]) -> Void) {
     guard let imageData = UIImageJPEGRepresentation(image, 0.5) else {
       print("Could not get JPEG representation of UIImage")
       return
     }
-    // Upload image to imagga
+    // Upload request
     Alamofire.upload(
       .POST,
       "http://api.imagga.com/v1/content",
-      headers: ["Authorization" : "Basic "],
+      headers: ["Authorization" : imaggaKey],
       multipartFormData: { multipartFormData in
         multipartFormData.appendBodyPart(data: imageData, name: "imagefile",
           fileName: "image.jpg", mimeType: "image/jpeg")
@@ -167,12 +171,52 @@ extension ViewController {
             
             print("Content uploaded with ID: \(firstFileID)")
             // Call the completion handler to update the UI
-            completion(tags: [String](), colors: [PhotoColor]())
+            //completion(tags: [String](), colors: [PhotoColor]())
+            self.downloadTags(firstFileID) { tags in
+              completion(tags: tags, colors: [PhotoColor]())
+            }
           }
         case .Failure(let encodingError):
           print(encodingError)
         }
       }
     )
+  }
+  
+  // Download tags from imagga
+  func downloadTags(contentID: String, completion: ([String]) -> Void) {
+    // Download request
+    Alamofire.request(
+      .GET,
+      "http://api.imagga.com/v1/tagging",
+      parameters: ["content": contentID],
+      headers: ["Authorization" : imaggaKey]
+      )
+      .responseJSON { response in
+        // Successfully received JSON
+        guard response.result.isSuccess else {
+          print("Error while fetching tags: \(response.result.error)")
+          completion([String]())
+          return
+        }
+        
+        // Validate JSON
+        guard let responseJSON = response.result.value as? [String: AnyObject],
+          results = responseJSON["results"] as? [AnyObject],
+          firstResult = results.first,
+          tagsAndConfidences = firstResult["tags"] as? [[String: AnyObject]] else {
+            print("Invalid tag information received from the service")
+            completion([String]())
+            return
+        }
+        
+        // Get tag string from JSON
+        let tags = tagsAndConfidences.flatMap({ dict in
+          return dict["tag"] as? String
+        })
+        
+        // Call completion handler with parsed tags
+        completion(tags)
+    }
   }
 }
