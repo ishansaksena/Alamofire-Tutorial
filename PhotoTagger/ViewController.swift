@@ -25,9 +25,6 @@ import Alamofire
 
 class ViewController: UIViewController {
   
-  // MARK: - Imagga key
-  private var imaggaKey = "wut you lookin at?"
-  
   // MARK: - IBOutlets
   @IBOutlet var takePictureButton: UIButton!
   @IBOutlet var imageView: UIImageView!
@@ -135,9 +132,7 @@ extension ViewController {
     }
     // Upload request
     Alamofire.upload(
-      .POST,
-      "http://api.imagga.com/v1/content",
-      headers: ["Authorization" : imaggaKey],
+      ImaggaRouter.Content,
       multipartFormData: { multipartFormData in
         multipartFormData.appendBodyPart(data: imageData, name: "imagefile",
           fileName: "image.jpg", mimeType: "image/jpeg")
@@ -188,12 +183,7 @@ extension ViewController {
   // Download tags from imagga
   func downloadTags(contentID: String, completion: ([String]) -> Void) {
     // Download request
-    Alamofire.request(
-      .GET,
-      "http://api.imagga.com/v1/tagging",
-      parameters: ["content": contentID],
-      headers: ["Authorization" : imaggaKey]
-      )
+    Alamofire.request(ImaggaRouter.Tags(contentID))
       .responseJSON { response in
         // Successfully received JSON
         guard response.result.isSuccess else {
@@ -224,12 +214,7 @@ extension ViewController {
   
   
   func downloadColors(contentID: String, completion: ([PhotoColor]) -> Void) {
-    Alamofire.request(
-      .GET,
-      "http://api.imagga.com/v1/colors",
-      parameters: ["content": contentID, "extract_object_colors": NSNumber(int: 0)],
-      headers: ["Authorization" : imaggaKey]
-      )
+    Alamofire.request(ImaggaRouter.Tags(contentID))
       .responseJSON { response in
         // Check if the response was successful
         guard response.result.isSuccess else {
