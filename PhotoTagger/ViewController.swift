@@ -214,7 +214,7 @@ extension ViewController {
   
   
   func downloadColors(contentID: String, completion: ([PhotoColor]) -> Void) {
-    Alamofire.request(ImaggaRouter.Tags(contentID))
+    Alamofire.request(ImaggaRouter.Colors(contentID))
       .responseJSON { response in
         // Check if the response was successful
         guard response.result.isSuccess else {
